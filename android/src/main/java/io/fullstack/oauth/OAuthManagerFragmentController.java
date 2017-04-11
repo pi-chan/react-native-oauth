@@ -6,6 +6,8 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.AsyncTask;
 import android.text.TextUtils;
+import com.github.scribejava.core.extractors.OAuth2AccessTokenJsonExtractor;
+import com.github.scribejava.core.model.*;
 import im.delight.android.webview.AdvancedWebView;
 
 import com.facebook.react.bridge.ReactContext;
@@ -248,32 +250,40 @@ public class OAuthManagerFragmentController {
         if (authVersion.equals("1.0")) {
           oauth1RequestToken = oauth10aService.getRequestToken();
 
-          final String requestTokenUrl = 
-            oauth10aService.getAuthorizationUrl(oauth1RequestToken);
+          final String requestTokenUrl =
+                  oauth10aService.getAuthorizationUrl(oauth1RequestToken);
           return requestTokenUrl;
         } else if (authVersion.equals("2.0")) {
 
           String authorizationUrl;
 
-          if (mCfg.containsKey("authorization_url_params")) {
-            final HashMap<String, String> additionalParams = new HashMap<String, String>();
-            additionalParams.put("access_type", "offline");
-            additionalParams.put("prompt", "consent");
+          if (oauth20Service != null) {
+            if (mCfg.containsKey("authorization_url_params")) {
+              final HashMap<String, String> additionalParams = new HashMap<String, String>();
+              additionalParams.put("access_type", "offline");
+              additionalParams.put("prompt", "consent");
 
-            Map<String,String> authUrlMap = (Map) mCfg.get("authorization_url_params");
-            if (authUrlMap != null) {
-              if (authUrlMap.containsKey("access_type")) {
-                additionalParams.put("access_type", (String) authUrlMap.get("access_type"));
+              Map<String,String> authUrlMap = (Map) mCfg.get("authorization_url_params");
+              if (authUrlMap != null) {
+                if (authUrlMap.containsKey("access_type")) {
+                  additionalParams.put("access_type", (String) authUrlMap.get("access_type"));
+                }
+                if (authUrlMap.containsKey("prompt")) {
+                  additionalParams.put("prompt", (String) authUrlMap.get("prompt"));
+                }
               }
-              if (authUrlMap.containsKey("prompt")) {
-                additionalParams.put("prompt", (String) authUrlMap.get("prompt"));
-              }
+              authorizationUrl = oauth20Service.getAuthorizationUrl(additionalParams);
+            } else {
+              authorizationUrl = oauth20Service.getAuthorizationUrl();
             }
-            authorizationUrl = oauth20Service.getAuthorizationUrl(additionalParams);
           } else {
-            authorizationUrl = oauth20Service.getAuthorizationUrl();
+            final ParameterList parameters = new ParameterList();
+            parameters.add(OAuthConstants.RESPONSE_TYPE, "code");
+            parameters.add(OAuthConstants.CLIENT_ID, (String)mCfg.get("client_id"));
+            parameters.add(OAuthConstants.REDIRECT_URI, (String)mCfg.get("callback_url"));
+            String baseUrl = (String)mCfg.get("authorize_url");
+            authorizationUrl = parameters.appendTo(baseUrl);
           }
-
           return authorizationUrl;
         } else {
           return null;
@@ -369,8 +379,23 @@ public class OAuthManagerFragmentController {
     @Override
     protected OAuth2AccessToken doInBackground(Void... params) {
       try {
-        final OAuth2AccessToken accessToken =
-            (OAuth2AccessToken) oauth20Service.getAccessToken(authorizationCode);
+        OAuth2AccessToken accessToken = null;
+        if (oauth20Service != null) {
+          accessToken = (OAuth2AccessToken) oauth20Service.getAccessToken(authorizationCode);
+        } else {
+          String endpoint = (String)mCfg.get("access_token_url");
+          String clientId = (String)mCfg.get("client_id");
+          String clientSecret = (String)mCfg.get("client_secret");
+          OAuthConfig config = new OAuthConfig(clientId, clientSecret);
+
+          final OAuthRequest request = new OAuthRequest(Verb.POST, endpoint, config);
+          request.addParameter(OAuthConstants.CLIENT_ID, clientId);
+          request.addParameter(OAuthConstants.CLIENT_SECRET, clientSecret);
+          request.addParameter(OAuthConstants.CODE, authorizationCode);
+          request.addParameter(OAuthConstants.REDIRECT_URI, (String)mCfg.get("callback_url"));
+          request.addParameter(OAuthConstants.GRANT_TYPE, OAuthConstants.AUTHORIZATION_CODE);
+          accessToken = OAuth2AccessTokenJsonExtractor.instance().extract(request.send());
+        }
         return accessToken;
       } catch (OAuthConnectionException ex) {
         Log.e(TAG, "OAuth connection exception: " + ex.getMessage());
