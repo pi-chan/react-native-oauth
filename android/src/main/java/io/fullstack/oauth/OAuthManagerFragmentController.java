@@ -1,7 +1,9 @@
 package io.fullstack.oauth;
 
-import android.app.Dialog;
-import android.os.Bundle;
+import android.app.Fragment;
+import android.app.FragmentTransaction;
+import android.net.Uri;
+import android.os.AsyncTask;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.AsyncTask;
@@ -13,28 +15,23 @@ import im.delight.android.webview.AdvancedWebView;
 import com.facebook.react.bridge.ReactContext;
 import android.net.Uri;
 import android.util.Log;
-import android.view.View;
-import android.view.ViewGroup;
-import android.app.Fragment;
-import android.app.FragmentTransaction;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.io.IOException;
-
-import com.github.scribejava.core.model.OAuth1RequestToken;
+import com.facebook.react.bridge.ReactContext;
+import com.github.scribejava.core.exceptions.OAuthConnectionException;
 import com.github.scribejava.core.model.OAuth1AccessToken;
+import com.github.scribejava.core.model.OAuth1RequestToken;
 import com.github.scribejava.core.model.OAuth2AccessToken;
-import com.github.scribejava.core.model.Token;
-
-import com.github.scribejava.core.model.OAuthRequest;
-import com.github.scribejava.core.oauth.OAuthService;
 import com.github.scribejava.core.oauth.OAuth10aService;
 import com.github.scribejava.core.oauth.OAuth20Service;
-import com.github.scribejava.core.exceptions.OAuthConnectionException;
+
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
+
+import im.delight.android.webview.AdvancedWebView;
 
 // Credit where credit is due:
-// Mostly taken from 
+// Mostly taken from
 // https://github.com/wuman/android-oauth-client/blob/6e01b81b7319a6954a1156e8b93c0b5cbeb61446/library/src/main/java/com/wuman/android/auth/DialogFragmentController.java
 
 public class OAuthManagerFragmentController {
@@ -110,15 +107,15 @@ public class OAuthManagerFragmentController {
         FragmentTransaction ft = fragmentManager.beginTransaction();
         Fragment prevDialog =
           fragmentManager.findFragmentByTag(TAG);
-        
+
         Log.d(TAG, "previous() Dialog?");
-        
+
         if (prevDialog != null) {
           ft.remove(prevDialog);
         }
 
         Log.d(TAG, "Creating new Fragment");
-        OAuthManagerDialogFragment frag = 
+        OAuthManagerDialogFragment frag =
           OAuthManagerDialogFragment.newInstance(context, OAuthManagerFragmentController.this);
 
         ft.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_OPEN);
@@ -133,11 +130,11 @@ public class OAuthManagerFragmentController {
   private void dismissDialog() {
       runOnMainThread(new Runnable() {
           public void run() {
-              OAuthManagerDialogFragment frag = 
+              OAuthManagerDialogFragment frag =
                       (OAuthManagerDialogFragment) fragmentManager.findFragmentByTag(TAG);
-                      
+
               if (frag != null) {
-                  frag.dismissAllowingStateLoss();
+                  //frag.dismissAllowingStateLoss();
               }
           }
       });
@@ -186,7 +183,7 @@ public class OAuthManagerFragmentController {
   }
 
   public void getAccessToken(
-    final AdvancedWebView webView, 
+    final AdvancedWebView webView,
     final String url
   ) {
     Uri responseUri = Uri.parse(url);
@@ -212,7 +209,7 @@ public class OAuthManagerFragmentController {
 
   ////// TASKS
 
-  private abstract class OAuthTokenTask<Result> 
+  private abstract class OAuthTokenTask<Result>
                           extends AsyncTask<Void, Void, Result> {
     protected AdvancedWebView mWebView;
     protected OAuthManagerFragmentController mCtrl;
@@ -238,7 +235,7 @@ public class OAuthManagerFragmentController {
     private OAuth1RequestToken oauth1RequestToken;
 
     public LoadRequestTokenTask(
-      OAuthManagerFragmentController ctrl, 
+      OAuthManagerFragmentController ctrl,
       AdvancedWebView view
     ) {
       super(ctrl, view);
@@ -323,7 +320,7 @@ public class OAuthManagerFragmentController {
     private String oauthVerifier;
 
     public Load1AccessTokenTask(
-      OAuthManagerFragmentController ctrl, 
+      OAuthManagerFragmentController ctrl,
       AdvancedWebView view,
       OAuth1RequestToken requestToken,
       String oauthVerifier
@@ -335,7 +332,7 @@ public class OAuthManagerFragmentController {
     @Override
     protected OAuth1AccessToken doInBackground(Void... params) {
       try {
-        final OAuth1AccessToken accessToken = 
+        final OAuth1AccessToken accessToken =
           (OAuth1AccessToken) oauth10aService.getAccessToken(oauth1RequestToken, oauthVerifier);
         return accessToken;
       } catch (OAuthConnectionException ex) {
@@ -368,7 +365,7 @@ public class OAuthManagerFragmentController {
     private String authorizationCode;
 
     public Load2AccessTokenTask(
-      OAuthManagerFragmentController ctrl, 
+      OAuthManagerFragmentController ctrl,
       AdvancedWebView view,
       String authorizationCode
     ) {
