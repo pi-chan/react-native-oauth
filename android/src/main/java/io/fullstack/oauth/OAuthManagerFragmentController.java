@@ -134,7 +134,7 @@ public class OAuthManagerFragmentController {
                       (OAuthManagerDialogFragment) fragmentManager.findFragmentByTag(TAG);
 
               if (frag != null) {
-                  //frag.dismissAllowingStateLoss();
+                  frag.dismissAllowingStateLoss();
               }
           }
       });
